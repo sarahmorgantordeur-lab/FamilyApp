@@ -13,6 +13,8 @@ import HomeScreen from './src/screens/HomeScreen';
 import ListScreen from './src/screens/ListScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import GroceryScreen from './src/screens/GroceryScreen';
+import MealsScreen from './src/screens/MealsScreen';
+import DashboardScreen from './src/screens/DashboardScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -23,8 +25,10 @@ function TabIcon({ emoji, focused }) {
 
 function WebStackNav({ navigation, colors }) {
   const links = [
+    { label: 'Accueil', target: 'Tabs', params: { screen: 'Accueil' } },
     { label: 'Listes', target: 'Tabs', params: { screen: 'Listes' } },
     { label: 'Courses', target: 'Tabs', params: { screen: 'Courses' } },
+    { label: 'Repas', target: 'Tabs', params: { screen: 'Repas' } },
     { label: 'Calendrier', target: 'Tabs', params: { screen: 'Calendrier' } },
   ];
 
@@ -81,9 +85,11 @@ function HomeTabs() {
   const isWeb = Platform.OS === 'web';
   return (
     <Tab.Navigator
+      initialRouteName="Accueil"
       screenOptions={{
         headerShown: false,
         tabBarPosition: isWeb ? 'top' : 'bottom',
+        tabBarScrollEnabled: isWeb,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: isWeb ? 'transparent' : colors.border,
@@ -105,10 +111,10 @@ function HomeTabs() {
         },
         tabBarItemStyle: isWeb
           ? {
-              width: 160,
-              maxWidth: 180,
+              width: 104,
+              maxWidth: 120,
               borderRadius: 14,
-              marginRight: 10,
+              marginRight: 6,
             }
           : undefined,
         tabBarIconStyle: isWeb ? { marginBottom: 2 } : undefined,
@@ -117,6 +123,13 @@ function HomeTabs() {
         tabBarShowIcon: true,
       }}
     >
+      <Tab.Screen
+        name="Accueil"
+        component={DashboardScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="🏠" focused={focused} color={color} />,
+        }}
+      />
       <Tab.Screen
         name="Listes"
         component={HomeScreen}
@@ -132,6 +145,13 @@ function HomeTabs() {
         }}
       />
       <Tab.Screen
+        name="Repas"
+        component={MealsScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="🍽️" focused={focused} color={color} />,
+        }}
+      />
+      <Tab.Screen
         name="Calendrier"
         component={CalendarScreen}
         options={{
@@ -144,7 +164,7 @@ function HomeTabs() {
 
 function AppContent() {
   const { session, loading: authLoading } = useAuth();
-  const { household, members, loading: householdLoading } = useHousehold();
+  const { household, loading: householdLoading } = useHousehold();
   const { colors, isDark } = useTheme();
 
   if (authLoading || (session && householdLoading)) {

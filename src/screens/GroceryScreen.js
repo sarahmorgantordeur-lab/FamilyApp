@@ -5,6 +5,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -263,22 +264,22 @@ export default function GroceryScreen() {
 }
 
 function GroceryItem({ item, colors, onToggle, onDelete }) {
-  function handleDeletePress(event) {
-    event?.stopPropagation?.();
-    onDelete();
-  }
-
   return (
     <View style={[styles.item, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={[
-        styles.checkbox,
-        item.checked
-          ? { backgroundColor: colors.success, borderColor: colors.success }
-          : { borderColor: colors.border },
-      ]}>
-        {item.checked && <Text style={styles.checkmark}>✓</Text>}
-      </View>
-      <TouchableOpacity style={styles.itemMain} onPress={onToggle} activeOpacity={0.7}>
+      <Pressable
+        style={styles.itemMain}
+        onPress={onToggle}
+      >
+        <Text
+          style={[
+            styles.checkbox,
+            item.checked
+              ? { backgroundColor: colors.success, borderColor: colors.success }
+              : { borderColor: colors.border },
+          ]}
+        >
+          {item.checked ? '✓' : ''}
+        </Text>
         <Text style={[
           styles.itemText,
           item.checked
@@ -287,8 +288,12 @@ function GroceryItem({ item, colors, onToggle, onDelete }) {
         ]}>
           {item.text}
         </Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={handleDeletePress} hitSlop={10} style={[styles.deleteBtn, { backgroundColor: colors.surfaceAlt }]}>
+      </Pressable>
+      <TouchableOpacity
+        onPress={onDelete}
+        hitSlop={10}
+        style={[styles.deleteBtn, { backgroundColor: colors.surfaceAlt }]}
+      >
         <Text style={[styles.deleteText, { color: colors.textMuted }]}>×</Text>
       </TouchableOpacity>
     </View>
@@ -330,13 +335,19 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     borderWidth: 1,
   },
-  itemMain: { flex: 1 },
+  itemMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    cursor: Platform.OS === 'web' ? 'pointer' : undefined,
+  },
   checkbox: {
     width: 26, height: 26, borderRadius: 8, borderWidth: 2,
-    marginRight: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    marginRight: 14, flexShrink: 0,
+    textAlign: 'center', lineHeight: 22,
+    color: '#fff', fontSize: 13, fontWeight: '700',
   },
-  checkmark: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  itemText: { fontSize: 16, lineHeight: 22 },
+  itemText: { flex: 1, fontSize: 16, lineHeight: 22 },
   deleteBtn: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
   deleteText: { fontSize: 18, lineHeight: 20 },
   error: {

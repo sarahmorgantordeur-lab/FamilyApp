@@ -116,7 +116,7 @@ export default function HomeScreen({ navigation }) {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <Text style={[styles.title, { color: colors.text }]}>Liste de tâches</Text>
+              <Text style={[styles.title, { color: colors.text }]}>Listes partagées</Text>
               <Text style={[styles.email, { color: colors.textSecondary }]} numberOfLines={1}>
                 {session?.user?.email}
               </Text>
