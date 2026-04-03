@@ -19,6 +19,7 @@ export default function AuthScreen() {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -33,7 +34,7 @@ export default function AuthScreen() {
     setLoading(true);
     const err = mode === 'login'
       ? await signIn(email.trim(), password)
-      : await signUp(email.trim(), password);
+      : await signUp(email.trim(), password, firstName.trim());
     setLoading(false);
     if (err) {
       setError(err.message);
@@ -44,88 +45,106 @@ export default function AuthScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView className="flex-1" style={[styles.safe, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
+        className="flex-1 px-5 md:px-8"
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <TouchableOpacity
+          className="absolute right-0 top-4 z-10 md:right-6"
           style={[styles.themeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={toggleTheme}
         >
           <Text style={styles.themeIcon}>{isDark ? '☀️' : '🌙'}</Text>
         </TouchableOpacity>
 
-        <View style={styles.center}>
-          <View style={[styles.iconWrap, { backgroundColor: colors.primaryLight }]}>
-            <Text style={styles.appIcon}>📋</Text>
-          </View>
-          <Text style={[styles.appName, { color: colors.text }]}>Mes Listes</Text>
-          <Text style={[styles.tagline, { color: colors.textSecondary }]}>
-            Organise votre quotidien en famille
-          </Text>
-        </View>
-
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.tabs}>
-            <TouchableOpacity
-              style={[styles.tab, mode === 'login' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-              onPress={() => { setMode('login'); setError(''); setSuccess(''); }}
-            >
-              <Text style={[styles.tabText, { color: mode === 'login' ? colors.primary : colors.textMuted }]}>
-                Connexion
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, mode === 'register' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-              onPress={() => { setMode('register'); setError(''); setSuccess(''); }}
-            >
-              <Text style={[styles.tabText, { color: mode === 'register' ? colors.primary : colors.textMuted }]}>
-                Inscription
-              </Text>
-            </TouchableOpacity>
+        <View className="mx-auto flex-1 w-full max-w-5xl md:flex-row md:items-center md:justify-between md:gap-10">
+          <View className="flex-1 items-center justify-center md:max-w-md" style={styles.center}>
+            <View style={[styles.iconWrap, { backgroundColor: colors.primaryLight }]}>
+              <Text style={styles.appIcon}>📋</Text>
+            </View>
+            <Text style={[styles.appName, { color: colors.text }]}>Mes Listes</Text>
+            <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+              Organise votre quotidien en famille
+            </Text>
           </View>
 
-          <View style={styles.form}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Email</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border }]}
-              placeholder="ton@email.com"
-              placeholderTextColor={colors.textMuted}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+          <View className="mb-8 w-full md:mb-0 md:max-w-xl" style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.tabs}>
+              <TouchableOpacity
+                style={[styles.tab, mode === 'login' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                onPress={() => { setMode('login'); setError(''); setSuccess(''); }}
+              >
+                <Text style={[styles.tabText, { color: mode === 'login' ? colors.primary : colors.textMuted }]}>
+                  Connexion
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tab, mode === 'register' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                onPress={() => { setMode('register'); setError(''); setSuccess(''); }}
+              >
+                <Text style={[styles.tabText, { color: mode === 'register' ? colors.primary : colors.textMuted }]}>
+                  Inscription
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-            <Text style={[styles.label, { color: colors.textSecondary, marginTop: 14 }]}>Mot de passe</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border }]}
-              placeholder="••••••••"
-              placeholderTextColor={colors.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.form}>
+              {mode === 'register' && (
+                <>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Prénom</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border, marginBottom: 14 }]}
+                    placeholder="Ton prénom"
+                    placeholderTextColor={colors.textMuted}
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </>
+              )}
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Email</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border }]}
+                placeholder="ton@email.com"
+                placeholderTextColor={colors.textMuted}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
 
-            {error ? (
-              <Text style={[styles.error, { color: colors.danger }]}>{error}</Text>
-            ) : null}
-            {success ? (
-              <Text style={[styles.success, { color: colors.success }]}>{success}</Text>
-            ) : null}
+              <Text style={[styles.label, { color: colors.textSecondary, marginTop: 14 }]}>Mot de passe</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border }]}
+                placeholder="••••••••"
+                placeholderTextColor={colors.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
 
-            <TouchableOpacity
-              style={[styles.btn, { backgroundColor: colors.primary }]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.btnText}>{mode === 'login' ? 'Se connecter' : 'Creer un compte'}</Text>
-              }
-            </TouchableOpacity>
+              {error ? (
+                <Text style={[styles.error, { color: colors.danger }]}>{error}</Text>
+              ) : null}
+              {success ? (
+                <Text style={[styles.success, { color: colors.success }]}>{success}</Text>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.btn, { backgroundColor: colors.primary }]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.btnText}>{mode === 'login' ? 'Se connecter' : 'Creer un compte'}</Text>
+                }
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { collection, doc, getDocs, orderBy, query, setDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import TodoItem from '../components/TodoItem';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -24,11 +26,44 @@ export default function ListScreen({ route, navigation }) {
   const { colors } = useTheme();
   const [newItemText, setNewItemText] = useState('');
   const [adding, setAdding] = useState(false);
+  const [error, setError] = useState('');
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
 
   const list = lists.find((l) => l.id === listId);
-  const isOwner = list?.owner_id === session?.user?.id;
+  const isOwner = list?.ownerId === session?.user?.uid;
+
+  useEffect(() => {
+    if (!list?.isShared || !Array.isArray(list.items) || list.items.length === 0) return;
+
+    const itemsQuery = query(
+      collection(db, 'lists', list.id, 'items'),
+      orderBy('createdAt', 'asc')
+    );
+
+    getDocs(itemsQuery).then((snap) => {
+      if (!snap.empty) return;
+
+      Promise.all(
+        list.items.map((item) =>
+          setDoc(doc(db, 'lists', list.id, 'items', item.id), {
+            text: item.text || '',
+            checked: !!item.checked,
+            dueDate: item.dueDate ?? item.due_date ?? null,
+            createdAt: item.createdAt ?? item.created_at ?? new Date().toISOString(),
+            listId: list.id,
+            ownerId: item.ownerId || item.owner_id || list.ownerId || session?.user?.uid || null,
+            householdId: item.householdId || item.household_id || list.householdId || null,
+            isShared: true,
+          })
+        )
+      ).catch((err) => {
+        setError(err?.message || "Impossible de migrer les éléments partagés.");
+      });
+    }).catch((err) => {
+      setError(err?.message || "Impossible de lire les éléments de la liste.");
+    });
+  }, [list, session?.user?.uid]);
 
   useLayoutEffect(() => {
     if (!list) return;
@@ -50,7 +85,7 @@ export default function ListScreen({ route, navigation }) {
 
   if (!list) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      <SafeAreaView className="flex-1" style={[styles.safe, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
       </SafeAreaView>
     );
@@ -60,9 +95,15 @@ export default function ListScreen({ route, navigation }) {
     const text = newItemText.trim();
     if (!text) return;
     setAdding(true);
-    await addItem(listId, text);
-    setNewItemText('');
-    setAdding(false);
+    setError('');
+    try {
+      await addItem(listId, text);
+      setNewItemText('');
+    } catch (err) {
+      setError(err?.message || "Impossible d'ajouter l'article.");
+    } finally {
+      setAdding(false);
+    }
   }
 
   function handleRefresh() {
@@ -70,7 +111,7 @@ export default function ListScreen({ route, navigation }) {
     if (!hasChecked) return;
     Alert.alert('Tout decocher', 'Decocher tous les elements ?', [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Decocher tout', onPress: () => uncheckAll(listId) },
+      { text: 'Decocher tout', onPress: () => uncheckAll(listId, list.items) },
     ]);
   }
 
@@ -81,7 +122,17 @@ export default function ListScreen({ route, navigation }) {
   }
 
   async function handleToggleShared() {
-    await toggleShared(listId, list.is_shared);
+    await toggleShared(listId, list.isShared);
+  }
+
+  async function handleDeleteItem(itemId) {
+    setError('');
+    try {
+      await deleteItem(itemId, listId);
+    } catch (err) {
+      setError(err?.message || "Impossible de supprimer l'article.");
+      throw err;
+    }
   }
 
   const checkedCount = list.items.filter((i) => i.checked).length;
@@ -90,128 +141,167 @@ export default function ListScreen({ route, navigation }) {
   const allDone = totalCount > 0 && checkedCount === totalCount;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['bottom']}>
+    <SafeAreaView className="flex-1" style={[styles.safe, { backgroundColor: colors.background }]} edges={['bottom']}>
       <KeyboardAvoidingView
+        className="flex-1"
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={100}
       >
-        {/* Title + sharing */}
-        <View style={styles.titleRow}>
-          <View style={styles.titleLeft}>
-            {editingName ? (
-              <TextInput
-                style={[styles.titleInput, { color: colors.text, borderBottomColor: colors.primary }]}
-                value={nameValue}
-                onChangeText={setNameValue}
-                onBlur={handleRenameSubmit}
-                onSubmitEditing={handleRenameSubmit}
-                autoFocus
-                maxLength={60}
-              />
-            ) : (
+        <View className="mx-auto flex-1 w-full max-w-5xl md:px-4">
+          {Platform.OS === 'web' && (
+            <View style={[styles.webNav, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
               <TouchableOpacity
-                onPress={() => { if (isOwner) { setNameValue(list.name); setEditingName(true); } }}
+                style={[styles.webNavBack, { backgroundColor: colors.primaryLight }]}
+                onPress={() => navigation.navigate('Tabs', { screen: 'Listes' })}
               >
-                <Text style={[styles.titleText, { color: colors.text }]}>{list.name}</Text>
-                {isOwner && (
-                  <Text style={[styles.editHint, { color: colors.textMuted }]}>Appuyer pour renommer</Text>
-                )}
+                <Text style={[styles.webNavBackText, { color: colors.primary }]}>← Retour</Text>
+              </TouchableOpacity>
+              <View style={styles.webNavLinks}>
+                <TouchableOpacity
+                  style={[styles.webNavLink, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+                  onPress={() => navigation.navigate('Tabs', { screen: 'Listes' })}
+                >
+                  <Text style={[styles.webNavLinkText, { color: colors.text }]}>Listes</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.webNavLink, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+                  onPress={() => navigation.navigate('Tabs', { screen: 'Courses' })}
+                >
+                  <Text style={[styles.webNavLinkText, { color: colors.text }]}>Courses</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.webNavLink, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+                  onPress={() => navigation.navigate('Tabs', { screen: 'Calendrier' })}
+                >
+                  <Text style={[styles.webNavLinkText, { color: colors.text }]}>Calendrier</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Title + sharing */}
+          <View style={styles.titleRow}>
+            <View style={styles.titleLeft}>
+              {editingName ? (
+                <TextInput
+                  style={[styles.titleInput, { color: colors.text, borderBottomColor: colors.primary }]}
+                  value={nameValue}
+                  onChangeText={setNameValue}
+                  onBlur={handleRenameSubmit}
+                  onSubmitEditing={handleRenameSubmit}
+                  autoFocus
+                  maxLength={60}
+                />
+              ) : (
+                <TouchableOpacity
+                  onPress={() => { if (isOwner) { setNameValue(list.name); setEditingName(true); } }}
+                >
+                  <Text style={[styles.titleText, { color: colors.text }]}>{list.name}</Text>
+                  {isOwner && (
+                    <Text style={[styles.editHint, { color: colors.textMuted }]}>Appuyer pour renommer</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {isOwner && (
+              <TouchableOpacity
+                style={[
+                  styles.shareBtn,
+                  {
+                    backgroundColor: list.isShared ? colors.primaryLight : colors.surfaceAlt,
+                    borderColor: list.isShared ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={handleToggleShared}
+              >
+                <Text style={[styles.shareIcon]}>🔗</Text>
+                <Text style={[styles.shareText, { color: list.isShared ? colors.primary : colors.textSecondary }]}>
+                  {list.isShared ? 'Partagee' : 'Partager'}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {isOwner && (
-            <TouchableOpacity
-              style={[
-                styles.shareBtn,
-                {
-                  backgroundColor: list.is_shared ? colors.primaryLight : colors.surfaceAlt,
-                  borderColor: list.is_shared ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={handleToggleShared}
-            >
-              <Text style={[styles.shareIcon]}>🔗</Text>
-              <Text style={[styles.shareText, { color: list.is_shared ? colors.primary : colors.textSecondary }]}>
-                {list.is_shared ? 'Partagee' : 'Partager'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Progress */}
-        <View style={styles.progressSection}>
-          <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${progress * 100}%`,
-                  backgroundColor: allDone ? colors.success : colors.primary,
-                },
-              ]}
-            />
-          </View>
-          <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
-            {totalCount === 0 ? 'Vide' : `${checkedCount} / ${totalCount}`}
-          </Text>
-        </View>
-
-        {allDone && (
-          <View style={[styles.doneBadge, { backgroundColor: colors.success + '22' }]}>
-            <Text style={[styles.doneText, { color: colors.success }]}>Tout est fait !</Text>
-          </View>
-        )}
-
-        {/* Items */}
-        <FlatList
-          data={list.items}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TodoItem
-              item={item}
-              onToggle={() => toggleItem(item.id, item.checked)}
-              onDelete={() => deleteItem(item.id)}
-            />
-          )}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <View style={[styles.emptyIconWrap, { backgroundColor: colors.primaryLight }]}>
-                <Text style={styles.emptyIcon}>✏️</Text>
-              </View>
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>Liste vide</Text>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                Ajoutez votre premier element ci-dessous
-              </Text>
+          {/* Progress */}
+          <View style={styles.progressSection}>
+            <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${progress * 100}%`,
+                    backgroundColor: allDone ? colors.success : colors.primary,
+                  },
+                ]}
+              />
             </View>
-          }
-        />
+            <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
+              {totalCount === 0 ? 'Vide' : `${checkedCount} / ${totalCount}`}
+            </Text>
+          </View>
 
-        {/* Input */}
-        <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border }]}
-            placeholder="Ajouter un element..."
-            placeholderTextColor={colors.textMuted}
-            value={newItemText}
-            onChangeText={setNewItemText}
-            onSubmitEditing={handleAddItem}
-            returnKeyType="done"
-            maxLength={200}
-          />
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: newItemText.trim() ? colors.primary : colors.border }]}
-            onPress={handleAddItem}
-            disabled={!newItemText.trim() || adding}
-          >
-            {adding
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={styles.addBtnText}>+</Text>
+          {allDone && (
+            <View style={[styles.doneBadge, { backgroundColor: colors.success + '22' }]}>
+              <Text style={[styles.doneText, { color: colors.success }]}>Tout est fait !</Text>
+            </View>
+          )}
+
+          {/* Items */}
+          <FlatList
+            className="flex-1"
+            data={list.items}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TodoItem
+                item={item}
+                onToggle={() => toggleItem(item.id, listId, item.checked)}
+                onDelete={() => handleDeleteItem(item.id)}
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <View style={[styles.emptyIconWrap, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={styles.emptyIcon}>✏️</Text>
+                </View>
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>Liste vide</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Ajoutez votre premier element ci-dessous
+                </Text>
+              </View>
             }
-          </TouchableOpacity>
+          />
+
+          {error ? (
+            <Text style={[styles.error, { color: colors.danger }]}>{error}</Text>
+          ) : null}
+
+          {/* Input */}
+          <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border }]}
+              placeholder="Ajouter un element..."
+              placeholderTextColor={colors.textMuted}
+              value={newItemText}
+              onChangeText={setNewItemText}
+              onSubmitEditing={handleAddItem}
+              returnKeyType="done"
+              maxLength={200}
+            />
+            <TouchableOpacity
+              style={[styles.addBtn, { backgroundColor: newItemText.trim() ? colors.primary : colors.border }]}
+              onPress={handleAddItem}
+              disabled={!newItemText.trim() || adding}
+            >
+              {adding
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={styles.addBtnText}>+</Text>
+              }
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -221,6 +311,29 @@ export default function ListScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
+  webNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    marginBottom: 8,
+  },
+  webNavBack: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  webNavBackText: { fontSize: 14, fontWeight: '700' },
+  webNavLinks: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  webNavLink: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  webNavLinkText: { fontSize: 14, fontWeight: '700' },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -288,6 +401,7 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 32 },
   emptyTitle: { fontSize: 20, fontWeight: '700', marginBottom: 6 },
   emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  error: { fontSize: 13, marginHorizontal: 20, marginBottom: 8 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -13,9 +13,14 @@ export default function TodoItem({ item, onToggle, onDelete }) {
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 40 }).start();
   }
 
+  function handleDeletePress(event) {
+    event?.stopPropagation?.();
+    onDelete();
+  }
+
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
-      <TouchableOpacity
+      <View
         style={[
           styles.row,
           {
@@ -23,42 +28,46 @@ export default function TodoItem({ item, onToggle, onDelete }) {
             borderColor: item.checked ? colors.border : colors.border,
           },
         ]}
-        onPress={onToggle}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={1}
       >
-        <View
-          style={[
-            styles.checkbox,
-            item.checked
-              ? { backgroundColor: colors.primary, borderColor: colors.primary }
-              : { borderColor: colors.border, backgroundColor: 'transparent' },
-          ]}
+        <TouchableOpacity
+          style={styles.main}
+          onPress={onToggle}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          activeOpacity={1}
         >
-          {item.checked && <Text style={styles.checkmark}>✓</Text>}
-        </View>
+          <View
+            style={[
+              styles.checkbox,
+              item.checked
+                ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                : { borderColor: colors.border, backgroundColor: 'transparent' },
+            ]}
+          >
+            {item.checked && <Text style={styles.checkmark}>✓</Text>}
+          </View>
 
-        <Text
-          style={[
-            styles.text,
-            item.checked
-              ? { color: colors.textMuted, textDecorationLine: 'line-through' }
-              : { color: colors.text },
-          ]}
-          numberOfLines={3}
-        >
-          {item.text}
-        </Text>
+          <Text
+            style={[
+              styles.text,
+              item.checked
+                ? { color: colors.textMuted, textDecorationLine: 'line-through' }
+                : { color: colors.text },
+            ]}
+            numberOfLines={3}
+          >
+            {item.text}
+          </Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.deleteBtn, { backgroundColor: colors.surfaceAlt }]}
-          onPress={onDelete}
+          onPress={handleDeletePress}
           hitSlop={10}
         >
           <Text style={[styles.deleteText, { color: colors.textMuted }]}>×</Text>
         </TouchableOpacity>
-      </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 }
@@ -74,6 +83,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 4,
     borderWidth: 1,
+  },
+  main: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   checkbox: {
     width: 26,

@@ -2,17 +2,24 @@ import { useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useHousehold } from '../context/HouseholdContext';
 
 export default function ListCard({ list, onPress, onDelete }) {
   const { colors } = useTheme();
   const { session } = useAuth();
+  const { members } = useHousehold();
   const scale = useRef(new Animated.Value(1)).current;
 
   const total = list.items.length;
   const checked = list.items.filter((i) => i.checked).length;
   const progress = total > 0 ? checked / total : 0;
   const allDone = total > 0 && checked === total;
-  const isOwner = list.owner_id === session?.user?.id;
+  const isOwner = list.ownerId === session?.user?.uid;
+
+  const creator = members.find((m) => m.uid === list.ownerId);
+  const creatorLabel = creator
+    ? (creator.uid === session?.user?.uid ? 'moi' : (creator.displayName || creator.email.split('@')[0]))
+    : null;
 
   function handlePressIn() {
     Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
@@ -23,24 +30,26 @@ export default function ListCard({ list, onPress, onDelete }) {
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
-      <TouchableOpacity
+      <View
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={1}
       >
         <View style={styles.top}>
           <View style={[styles.iconWrap, { backgroundColor: colors.primaryLight }]}>
             <Text style={styles.icon}>{allDone ? '✓' : '≡'}</Text>
           </View>
 
-          <View style={styles.nameWrap}>
+          <TouchableOpacity
+            style={styles.nameWrap}
+            onPress={onPress}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            activeOpacity={1}
+          >
             <View style={styles.nameRow}>
               <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
                 {list.name}
               </Text>
-              {list.is_shared && (
+              {list.isShared && (
                 <View style={[styles.badge, { backgroundColor: colors.primaryLight }]}>
                   <Text style={[styles.badgeText, { color: colors.primary }]}>Partagee</Text>
                 </View>
@@ -48,8 +57,9 @@ export default function ListCard({ list, onPress, onDelete }) {
             </View>
             <Text style={[styles.count, { color: colors.textSecondary }]}>
               {total === 0 ? 'Vide' : `${checked} sur ${total} element${total > 1 ? 's' : ''}`}
+              {creatorLabel ? `  ·  par ${creatorLabel}` : ''}
             </Text>
-          </View>
+          </TouchableOpacity>
 
           {isOwner && (
             <TouchableOpacity
@@ -75,7 +85,7 @@ export default function ListCard({ list, onPress, onDelete }) {
             />
           </View>
         )}
-      </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 }
