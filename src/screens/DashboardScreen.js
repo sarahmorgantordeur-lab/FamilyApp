@@ -31,11 +31,16 @@ const SECTIONS = [
     emoji: '📅',
     description: 'Suivez vos événements communs',
   },
+  {
+    name: 'Finances',
+    emoji: '💰',
+    description: 'Comptes, dépenses et épargne',
+  },
 ];
 
 export default function DashboardScreen({ navigation }) {
-  const { colors, isDark, toggleTheme } = useTheme();
-  const { session, signOut } = useAuth();
+  const { colors } = useTheme();
+  const { session } = useAuth();
   const { members, household } = useHousehold();
 
   const memberNames = members.map((m) => m.displayName || m.email.split('@')[0]);
@@ -72,14 +77,6 @@ export default function DashboardScreen({ navigation }) {
                   Code : {household.code}
                 </Text>
               ) : null}
-            </View>
-            <View style={styles.headerBtns}>
-              <TouchableOpacity
-                style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={toggleTheme}
-              >
-                <Text style={styles.iconBtnText}>{isDark ? '☀️' : '🌙'}</Text>
-              </TouchableOpacity>
             </View>
           </View>
 

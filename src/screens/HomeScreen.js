@@ -26,8 +26,8 @@ const HIDDEN_LIST_NAMES = new Set(['🛒 Liste de courses']);
 
 export default function HomeScreen({ navigation }) {
   const { lists, loading, addList, deleteList } = useApp();
-  const { signOut, session } = useAuth();
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { session } = useAuth();
+  const { colors } = useTheme();
   const { members, household } = useHousehold();
   const [newListName, setNewListName] = useState('');
   const [adding, setAdding] = useState(false);
@@ -93,13 +93,6 @@ export default function HomeScreen({ navigation }) {
     ]);
   }
 
-  function handleSignOut() {
-    Alert.alert('Deconnexion', 'Veux-tu te deconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Deconnecter', style: 'destructive', onPress: signOut },
-    ]);
-  }
-
   const visibleLists = lists.filter((list) => !HIDDEN_LIST_NAMES.has(list.name));
   const totalItems = visibleLists.reduce((acc, l) => acc + l.items.length, 0);
   const totalChecked = visibleLists.reduce((acc, l) => acc + l.items.filter((i) => i.checked).length, 0);
@@ -120,20 +113,6 @@ export default function HomeScreen({ navigation }) {
               <Text style={[styles.email, { color: colors.textSecondary }]} numberOfLines={1}>
                 {session?.user?.email}
               </Text>
-            </View>
-            <View style={styles.headerBtns}>
-              <TouchableOpacity
-                style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={toggleTheme}
-              >
-                <Text style={styles.iconBtnText}>{isDark ? '☀️' : '🌙'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={handleSignOut}
-              >
-                <Text style={styles.iconBtnText}>↩</Text>
-              </TouchableOpacity>
             </View>
           </View>
 

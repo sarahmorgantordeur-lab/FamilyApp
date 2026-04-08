@@ -68,11 +68,16 @@ export default function CalendarScreen() {
     return marks;
   }, [events, deadlines, selected, colors]);
 
-  // Items for the selected day
+  // Items for the selected day, sorted chronologically by start time
   const dayEvents = useMemo(() => {
     const evs = events.filter((e) => e.date === selected);
     const dls = deadlines.filter((d) => d.date === selected);
-    return [...evs, ...dls];
+    const all = [...evs, ...dls];
+    return all.sort((a, b) => {
+      const ta = a.time || '99:99';
+      const tb = b.time || '99:99';
+      return ta.localeCompare(tb);
+    });
   }, [events, deadlines, selected]);
 
   async function handleSave(data) {

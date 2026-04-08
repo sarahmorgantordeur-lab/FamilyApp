@@ -4,7 +4,10 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -21,7 +24,7 @@ import { useTheme } from '../context/ThemeContext';
 
 export default function ListScreen({ route, navigation }) {
   const { listId } = route.params;
-  const { lists, addItem, toggleItem, deleteItem, uncheckAll, renameList, toggleShared } = useApp();
+  const { lists, addItem, toggleItem, deleteItem, uncheckAll, renameList, toggleShared, setItemReminder } = useApp();
   const { session } = useAuth();
   const { colors } = useTheme();
   const [newItemText, setNewItemText] = useState('');
@@ -29,6 +32,46 @@ export default function ListScreen({ route, navigation }) {
   const [error, setError] = useState('');
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
+  const [reminderModal, setReminderModal] = useState(null); // { itemId, date, time }
+
+  function defaultReminderValues() {
+    const d = new Date(Date.now() + 60 * 60 * 1000); // +1h
+    const date = d.toISOString().slice(0, 10);
+    const time = `${String(d.getHours()).padStart(2, '0')}:${String(Math.floor(d.getMinutes() / 15) * 15).padStart(2, '0')}`;
+    return { date, time };
+  }
+
+  function openReminderModal(itemId) {
+    const item = list?.items?.find((i) => i.id === itemId);
+    if (item?.reminderAt) {
+      const [date, time] = item.reminderAt.split('T');
+      setReminderModal({ itemId, date, time: time?.slice(0, 5) || '' });
+    } else {
+      setReminderModal({ itemId, ...defaultReminderValues() });
+    }
+  }
+
+  async function handleConfirmReminder() {
+    if (!reminderModal) return;
+    const { itemId, date, time } = reminderModal;
+    const reminderAt = date && time ? `${date}T${time}` : null;
+    try {
+      await setItemReminder(itemId, listId, reminderAt);
+    } catch (err) {
+      setError(err?.message || 'Impossible de définir le rappel.');
+    }
+    setReminderModal(null);
+  }
+
+  async function handleRemoveReminder() {
+    if (!reminderModal) return;
+    try {
+      await setItemReminder(reminderModal.itemId, listId, null);
+    } catch (err) {
+      setError(err?.message || 'Impossible de supprimer le rappel.');
+    }
+    setReminderModal(null);
+  }
 
   const list = lists.find((l) => l.id === listId);
   const isOwner = list?.ownerId === session?.user?.uid;
@@ -258,6 +301,7 @@ export default function ListScreen({ route, navigation }) {
                 item={item}
                 onToggle={() => toggleItem(item.id, listId, item.checked)}
                 onDelete={() => handleDeleteItem(item.id)}
+                onSetReminder={openReminderModal}
               />
             )}
             contentContainerStyle={styles.listContent}
@@ -304,6 +348,67 @@ export default function ListScreen({ route, navigation }) {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* ─── Modal rappel ─────────────────────────────────────────────────── */}
+      <Modal visible={!!reminderModal} transparent animationType="slide" onRequestClose={() => setReminderModal(null)}>
+        <KeyboardAvoidingView
+          style={styles.reminderOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <Pressable style={{ flex: 1 }} onPress={() => setReminderModal(null)} />
+          <View style={[styles.reminderSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.reminderHandle} />
+            <Text style={[styles.reminderTitle, { color: colors.text }]}>Définir un rappel</Text>
+
+            <Text style={[styles.reminderLabel, { color: colors.textSecondary }]}>Date (AAAA-MM-JJ)</Text>
+            <TextInput
+              style={[styles.reminderInput, { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border }]}
+              value={reminderModal?.date || ''}
+              onChangeText={(v) => setReminderModal((m) => ({ ...m, date: v }))}
+              placeholder="ex. 2026-04-08"
+              placeholderTextColor={colors.textMuted}
+              maxLength={10}
+              keyboardType="numeric"
+            />
+
+            <Text style={[styles.reminderLabel, { color: colors.textSecondary }]}>Heure</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeRow}>
+              {Array.from({ length: 24 * 4 }, (_, i) => {
+                const h = String(Math.floor(i / 4)).padStart(2, '0');
+                const m = String((i % 4) * 15).padStart(2, '0');
+                const t = `${h}:${m}`;
+                const active = reminderModal?.time === t;
+                return (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.timeChip, { backgroundColor: active ? colors.primary : colors.surfaceAlt, borderColor: active ? colors.primary : colors.border }]}
+                    onPress={() => setReminderModal((m2) => ({ ...m2, time: t }))}
+                  >
+                    <Text style={[styles.timeChipText, { color: active ? '#fff' : colors.textSecondary }]}>{t}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.reminderActions}>
+              <TouchableOpacity
+                style={[styles.reminderBtn, { backgroundColor: colors.primary }]}
+                onPress={handleConfirmReminder}
+              >
+                <Text style={styles.reminderBtnText}>Enregistrer</Text>
+              </TouchableOpacity>
+              {reminderModal && list?.items?.find((i) => i.id === reminderModal.itemId)?.reminderAt && (
+                <TouchableOpacity
+                  style={[styles.reminderBtn, { backgroundColor: colors.danger + '22', borderColor: colors.danger + '55', borderWidth: 1 }]}
+                  onPress={handleRemoveReminder}
+                >
+                  <Text style={[styles.reminderBtnText, { color: colors.danger }]}>Supprimer le rappel</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -425,6 +530,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addBtnText: { color: '#fff', fontSize: 26, lineHeight: 30, fontWeight: '300' },
+  reminderOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  reminderSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36, borderWidth: 1, borderBottomWidth: 0 },
+  reminderHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#ccc', alignSelf: 'center', marginBottom: 16 },
+  reminderTitle: { fontSize: 18, fontWeight: '800', marginBottom: 20 },
+  reminderLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 },
+  reminderInput: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, borderWidth: 1, marginBottom: 16 },
+  timeRow: { marginBottom: 20 },
+  timeChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, marginRight: 6 },
+  timeChipText: { fontSize: 13, fontWeight: '600' },
+  reminderActions: { gap: 10 },
+  reminderBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  reminderBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   refreshBtn: {
     paddingHorizontal: 12,
     paddingVertical: 7,

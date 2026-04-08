@@ -5,6 +5,8 @@ const projectRoot = path.resolve(__dirname, '..');
 const distDir = path.join(projectRoot, 'dist');
 const htmlPath = path.join(distDir, 'index.html');
 const iconSource = path.join(projectRoot, 'assets', 'icon.png');
+const faviconSvgSource = path.join(projectRoot, 'assets', 'favicon.svg');
+const faviconSvgDest = path.join(distDir, 'favicon.svg');
 const appleIconName = 'apple-touch-icon.png';
 const appleIconDest = path.join(distDir, appleIconName);
 const manifestName = 'site.webmanifest';
@@ -22,6 +24,11 @@ if (fs.existsSync(iconSource)) {
   fs.copyFileSync(iconSource, appleIconDest);
   fs.copyFileSync(iconSource, android192Dest);
   fs.copyFileSync(iconSource, android512Dest);
+}
+
+// Copy SVG favicon (supports dark mode via prefers-color-scheme)
+if (fs.existsSync(faviconSvgSource)) {
+  fs.copyFileSync(faviconSvgSource, faviconSvgDest);
 }
 
 const manifest = {
@@ -51,6 +58,10 @@ fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
 let html = fs.readFileSync(htmlPath, 'utf8');
 
+// Remove favicon.ico link injected by Expo (if any)
+html = html.replace(/<link[^>]*rel="shortcut icon"[^>]*>/g, '');
+html = html.replace(/<link[^>]*rel="icon"[^>]*>/g, '');
+
 const injection = [
   '    <meta name="apple-mobile-web-app-capable" content="yes" />',
   '    <meta name="apple-mobile-web-app-status-bar-style" content="default" />',
@@ -58,6 +69,7 @@ const injection = [
   '    <meta name="mobile-web-app-capable" content="yes" />',
   '    <meta name="application-name" content="Family Dashboard" />',
   '    <meta name="theme-color" content="#EEF6FF" />',
+  '    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />',
   `    <link rel="apple-touch-icon" href="/${appleIconName}" />`,
   `    <link rel="manifest" href="/${manifestName}" />`,
 ].join('\n');
@@ -68,4 +80,4 @@ if (!html.includes('apple-mobile-web-app-title')) {
 
 fs.writeFileSync(htmlPath, html);
 
-console.log('Postbuild web completed: Apple touch icon and iPhone meta added.');
+console.log('Postbuild web completed: SVG favicon, Apple touch icon and iPhone meta added.');

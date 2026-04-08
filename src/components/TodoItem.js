@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
-export default function TodoItem({ item, onToggle, onDelete }) {
+export default function TodoItem({ item, onToggle, onDelete, onSetReminder }) {
   const { colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -60,6 +60,16 @@ export default function TodoItem({ item, onToggle, onDelete }) {
           </Text>
         </TouchableOpacity>
 
+        {!item.checked && onSetReminder && (
+          <TouchableOpacity
+            style={[styles.reminderBtn, { backgroundColor: item.reminderAt ? colors.primaryLight : colors.surfaceAlt }]}
+            onPress={(e) => { e.stopPropagation?.(); onSetReminder(item.id); }}
+            hitSlop={10}
+          >
+            <Text style={styles.reminderText}>{item.reminderAt ? '🔔' : '🔕'}</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={[styles.deleteBtn, { backgroundColor: colors.surfaceAlt }]}
           onPress={handleDeletePress}
@@ -109,13 +119,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
+  reminderBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+    flexShrink: 0,
+  },
+  reminderText: { fontSize: 14 },
   deleteBtn: {
     width: 28,
     height: 28,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 10,
+    marginLeft: 6,
     flexShrink: 0,
   },
   deleteText: {

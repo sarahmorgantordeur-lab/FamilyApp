@@ -31,11 +31,13 @@ export default function EventForm({ visible, onClose, onSave, initialDate, event
   const [location, setLocation]   = useState('');
   const [date, setDate]           = useState(initialDate || '');
   const [time, setTime]           = useState('');
+  const [endTime, setEndTime]     = useState('');
   const [notes, setNotes]         = useState('');
   const [importance, setImportance] = useState('normal');
   const [isShared, setIsShared]   = useState(false);
   const [error, setError]         = useState('');
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -43,6 +45,7 @@ export default function EventForm({ visible, onClose, onSave, initialDate, event
       setLocation(event?.location || '');
       setDate(event?.date || initialDate || '');
       setTime(event?.time?.slice(0, 5) || '');
+      setEndTime(event?.endTime?.slice(0, 5) || '');
       setNotes(event?.notes || '');
       setImportance(event?.importance || 'normal');
       setIsShared(isHouseholdEvent ? true : (event?.isShared || false));
@@ -54,11 +57,13 @@ export default function EventForm({ visible, onClose, onSave, initialDate, event
     if (!title.trim()) { setError('Le titre est requis.'); return; }
     if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) { setError('Date invalide (format AAAA-MM-JJ).'); return; }
     if (time && !time.match(/^\d{2}:\d{2}$/)) { setError('Heure invalide (format HH:MM).'); return; }
+    if (endTime && !endTime.match(/^\d{2}:\d{2}$/)) { setError('Heure de fin invalide (format HH:MM).'); return; }
     const saveError = await onSave({
       title: title.trim(),
       location: location.trim() || null,
       date,
       time: time || null,
+      endTime: endTime || null,
       notes: notes.trim() || null,
       importance,
       isShared: isHouseholdEvent ? true : isShared,
@@ -100,23 +105,23 @@ export default function EventForm({ visible, onClose, onSave, initialDate, event
               />
             </Field>
 
-            {/* Date + Time */}
+            {/* Date */}
+            <Field label="Date" colors={colors}>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border }]}
+                placeholder="2026-04-15"
+                placeholderTextColor={colors.textMuted}
+                value={date}
+                onChangeText={setDate}
+                keyboardType="numeric"
+                maxLength={10}
+              />
+            </Field>
+
+            {/* Heure début + fin */}
             <View style={styles.row}>
               <View style={styles.rowItem}>
-                <Field label="Date" colors={colors}>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border }]}
-                    placeholder="2026-04-15"
-                    placeholderTextColor={colors.textMuted}
-                    value={date}
-                    onChangeText={setDate}
-                    keyboardType="numeric"
-                    maxLength={10}
-                  />
-                </Field>
-              </View>
-              <View style={styles.rowItem}>
-                <Field label="Heure" colors={colors}>
+                <Field label="Heure de début" colors={colors}>
                   <TouchableOpacity
                     style={[styles.input, styles.selectInput, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
                     onPress={() => setShowTimePicker(true)}
@@ -128,7 +133,25 @@ export default function EventForm({ visible, onClose, onSave, initialDate, event
                   </TouchableOpacity>
                   {time ? (
                     <TouchableOpacity style={styles.clearTimeBtn} onPress={() => setTime('')}>
-                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Effacer l'heure</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Effacer</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </Field>
+              </View>
+              <View style={styles.rowItem}>
+                <Field label="Heure de fin" colors={colors}>
+                  <TouchableOpacity
+                    style={[styles.input, styles.selectInput, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+                    onPress={() => setShowEndTimePicker(true)}
+                  >
+                    <Text style={{ color: endTime ? colors.text : colors.textMuted, fontSize: 16 }}>
+                      {endTime || 'Choisir'}
+                    </Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 14 }}>▾</Text>
+                  </TouchableOpacity>
+                  {endTime ? (
+                    <TouchableOpacity style={styles.clearTimeBtn} onPress={() => setEndTime('')}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Effacer</Text>
                     </TouchableOpacity>
                   ) : null}
                 </Field>
@@ -210,6 +233,7 @@ export default function EventForm({ visible, onClose, onSave, initialDate, event
           </ScrollView>
         </KeyboardAvoidingView>
 
+        {/* Picker heure début */}
         <Modal
           visible={showTimePicker}
           transparent
@@ -219,7 +243,7 @@ export default function EventForm({ visible, onClose, onSave, initialDate, event
           <View style={styles.pickerOverlay}>
             <View style={[styles.pickerModal, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
-                <Text style={[styles.pickerTitle, { color: colors.text }]}>Choisir une heure</Text>
+                <Text style={[styles.pickerTitle, { color: colors.text }]}>Heure de début</Text>
                 <TouchableOpacity onPress={() => setShowTimePicker(false)}>
                   <Text style={[styles.pickerClose, { color: colors.primary }]}>Fermer</Text>
                 </TouchableOpacity>
@@ -228,21 +252,40 @@ export default function EventForm({ visible, onClose, onSave, initialDate, event
                 {TIME_OPTIONS.map((option) => (
                   <TouchableOpacity
                     key={option}
-                    style={[
-                      styles.timeOption,
-                      {
-                        backgroundColor: time === option ? colors.primaryLight : colors.surfaceAlt,
-                        borderColor: time === option ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      setTime(option);
-                      setShowTimePicker(false);
-                    }}
+                    style={[styles.timeOption, { backgroundColor: time === option ? colors.primaryLight : colors.surfaceAlt, borderColor: time === option ? colors.primary : colors.border }]}
+                    onPress={() => { setTime(option); setShowTimePicker(false); }}
                   >
-                    <Text style={[styles.timeOptionText, { color: time === option ? colors.primary : colors.text }]}>
-                      {option}
-                    </Text>
+                    <Text style={[styles.timeOptionText, { color: time === option ? colors.primary : colors.text }]}>{option}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Picker heure fin */}
+        <Modal
+          visible={showEndTimePicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowEndTimePicker(false)}
+        >
+          <View style={styles.pickerOverlay}>
+            <View style={[styles.pickerModal, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.pickerTitle, { color: colors.text }]}>Heure de fin</Text>
+                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                  <Text style={[styles.pickerClose, { color: colors.primary }]}>Fermer</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+                {TIME_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[styles.timeOption, { backgroundColor: endTime === option ? colors.primaryLight : colors.surfaceAlt, borderColor: endTime === option ? colors.primary : colors.border }]}
+                    onPress={() => { setEndTime(option); setShowEndTimePicker(false); }}
+                  >
+                    <Text style={[styles.timeOptionText, { color: endTime === option ? colors.primary : colors.text }]}>{option}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>

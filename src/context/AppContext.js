@@ -15,6 +15,14 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
+import {
+  requestNotificationPermission,
+  notifyTaskDone,
+  scheduleEventReminders,
+  clearAllReminders,
+  scheduleTaskReminders,
+  clearAllTaskReminders,
+} from '../lib/notifications';
 
 const AppContext = createContext(null);
 
@@ -70,6 +78,22 @@ export function AppProvider({ children, householdId }) {
     onFallback?.();
     setLoading(false);
   }
+
+  // Demande la permission de notifications au premier chargement
+  useEffect(() => { requestNotificationPermission(); }, []);
+
+  // Planifie les rappels dès que les événements changent
+  useEffect(() => {
+    scheduleEventReminders(events);
+    return () => clearAllReminders();
+  }, [events]);
+
+  // Planifie les rappels de tâches dès que les listes changent
+  useEffect(() => {
+    const allItems = lists.flatMap((l) => l.items || []);
+    scheduleTaskReminders(allItems);
+    return () => clearAllTaskReminders();
+  }, [lists]);
 
   useEffect(() => {
     if (!uid) { setLists([]); setEvents([]); setLoading(false); return; }
@@ -322,6 +346,10 @@ export function AppProvider({ children, householdId }) {
   }
   async function toggleItem(itemId, listId, current) {
     await updateDoc(doc(db, 'lists', listId, 'items', itemId), { checked: !current });
+    if (!current) {
+      const item = lists.find((l) => l.id === listId)?.items?.find((i) => i.id === itemId);
+      if (item?.text) notifyTaskDone(item.text);
+    }
   }
   async function deleteItem(itemId, listId) {
     await deleteDoc(doc(db, 'lists', listId, 'items', itemId));
@@ -335,6 +363,9 @@ export function AppProvider({ children, householdId }) {
   }
   async function setItemDueDate(itemId, listId, dueDate) {
     await updateDoc(doc(db, 'lists', listId, 'items', itemId), { dueDate });
+  }
+  async function setItemReminder(itemId, listId, reminderAt) {
+    await updateDoc(doc(db, 'lists', listId, 'items', itemId), { reminderAt: reminderAt || null });
   }
 
   // --- Events ---
@@ -362,7 +393,7 @@ export function AppProvider({ children, householdId }) {
     <AppContext.Provider value={{
       lists, events, loading,
       addList, deleteList, renameList, toggleShared,
-      addItem, toggleItem, deleteItem, uncheckAll, setItemDueDate,
+      addItem, toggleItem, deleteItem, uncheckAll, setItemDueDate, setItemReminder,
       addEvent, updateEvent, deleteEvent,
     }}>
       {children}

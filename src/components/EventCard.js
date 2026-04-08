@@ -37,9 +37,9 @@ export default function EventCard({ event, onEdit, onDelete }) {
     ]);
   }
 
-  const timeStr = event.time
-    ? event.time.slice(0, 5)
-    : null;
+  const timeStr = event.time ? event.time.slice(0, 5) : null;
+  const endTimeStr = event.endTime ? event.endTime.slice(0, 5) : null;
+  const durationStr = timeStr && endTimeStr ? `${timeStr} – ${endTimeStr}` : timeStr;
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -63,8 +63,8 @@ export default function EventCard({ event, onEdit, onDelete }) {
         </Text>
 
         <View style={styles.meta}>
-          {timeStr && (
-            <Text style={[styles.metaItem, { color: colors.textSecondary }]}>🕐 {timeStr}</Text>
+          {durationStr && (
+            <Text style={[styles.metaItem, { color: colors.textSecondary }]}>🕐 {durationStr}</Text>
           )}
           {event.location ? (
             <Text style={[styles.metaItem, { color: colors.textSecondary }]} numberOfLines={1}>

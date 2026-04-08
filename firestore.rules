@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuth() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function getUserData(u) { return get(/databases/$(database)/documents/users/$(u)).data; }
+    function myHouseholdId() { return getUserData(uid()).householdId; }
+    function sameHousehold(ownerId) {
+      return isAuth() &&
+        getUserData(uid()).householdId != null &&
+        getUserData(uid()).householdId == getUserData(ownerId).householdId;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isAuth() && uid() == userId;
+    }
+    match /households/{hId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+    match /lists/{listId} {
+      allow read: if isAuth() && (resource.data.ownerId == uid() || (resource.data.isShared == true && resource.data.householdId == myHouseholdId()));
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && resource.data.ownerId == uid();
+      match /items/{itemId} {
+        allow read, write: if isAuth();
+      }
+    }
+    match /events/{eventId} {
+      allow read: if isAuth() && (resource.data.ownerId == uid() || (resource.data.isShared == true && resource.data.householdId == myHouseholdId()));
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && resource.data.ownerId == uid();
+    }
+
+    // ── Finance ──────────────────────────────────────────────────────────────
+    // Comptes épargne
+    match /financeAccounts/{docId} {
+      allow read: if isAuth() && resource.data.householdId == myHouseholdId();
+      allow create: if isAuth() && request.resource.data.householdId == myHouseholdId();
+      allow update, delete: if isAuth() && resource.data.householdId == myHouseholdId();
+    }
+    // Métadonnées comptes principaux (numéro, couleur, nom)
+    match /financeMainMeta/{docId} {
+      allow read: if isAuth() && resource.data.householdId == myHouseholdId();
+      allow create: if isAuth() && request.resource.data.householdId == myHouseholdId();
+      allow update, delete: if isAuth() && resource.data.householdId == myHouseholdId();
+    }
+    // Transactions (revenus, dépenses, ajustements)
+    match /financeTransactions/{docId} {
+      allow read: if isAuth() && resource.data.householdId == myHouseholdId();
+      allow create: if isAuth() && request.resource.data.householdId == myHouseholdId();
+      allow update, delete: if isAuth() && resource.data.householdId == myHouseholdId();
+    }
+  }
+}

@@ -7,6 +7,8 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { AppProvider } from './src/context/AppContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { HouseholdProvider, useHousehold } from './src/context/HouseholdContext';
+import { FinanceProvider } from './src/context/FinanceContext';
+import AppNavBar from './src/components/AppNavBar';
 import AuthScreen from './src/screens/AuthScreen';
 import HouseholdScreen from './src/screens/HouseholdScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -15,6 +17,7 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import GroceryScreen from './src/screens/GroceryScreen';
 import MealsScreen from './src/screens/MealsScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
+import FinanceScreen from './src/screens/FinanceScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -30,6 +33,7 @@ function WebStackNav({ navigation, colors }) {
     { label: 'Courses', target: 'Tabs', params: { screen: 'Courses' } },
     { label: 'Repas', target: 'Tabs', params: { screen: 'Repas' } },
     { label: 'Calendrier', target: 'Tabs', params: { screen: 'Calendrier' } },
+    { label: 'Finances', target: 'Tabs', params: { screen: 'Finances' } },
   ];
 
   return (
@@ -86,41 +90,22 @@ function HomeTabs() {
   return (
     <Tab.Navigator
       initialRouteName="Accueil"
+      tabBar={isWeb ? (props) => <AppNavBar {...props} /> : undefined}
       screenOptions={{
         headerShown: false,
-        tabBarPosition: isWeb ? 'top' : 'bottom',
-        tabBarScrollEnabled: isWeb,
+        tabBarPosition: 'bottom',
         tabBarStyle: {
           backgroundColor: colors.surface,
-          borderTopColor: isWeb ? 'transparent' : colors.border,
-          borderBottomColor: isWeb ? colors.border : 'transparent',
-          borderBottomWidth: isWeb ? 1 : 0,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: isWeb ? 72 : 64,
-          paddingHorizontal: isWeb ? 24 : 0,
-          paddingTop: isWeb ? 10 : 6,
-          paddingBottom: isWeb ? 10 : 6,
-          justifyContent: 'center',
+          height: 60,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: {
-          fontSize: isWeb ? 14 : 11,
-          fontWeight: '700',
-          marginBottom: isWeb ? 0 : 4,
-        },
-        tabBarItemStyle: isWeb
-          ? {
-              width: 104,
-              maxWidth: 120,
-              borderRadius: 14,
-              marginRight: 6,
-            }
-          : undefined,
-        tabBarIconStyle: isWeb ? { marginBottom: 2 } : undefined,
-        tabBarActiveBackgroundColor: isWeb ? colors.primaryLight : 'transparent',
-        tabBarInactiveBackgroundColor: 'transparent',
+        tabBarShowLabel: false,
         tabBarShowIcon: true,
+        tabBarActiveBackgroundColor: 'transparent',
+        tabBarInactiveBackgroundColor: 'transparent',
       }}
     >
       <Tab.Screen
@@ -158,6 +143,13 @@ function HomeTabs() {
           tabBarIcon: ({ focused, color }) => <TabIcon emoji="📅" focused={focused} color={color} />,
         }}
       />
+      <Tab.Screen
+        name="Finances"
+        component={FinanceScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="💰" focused={focused} color={color} />,
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -181,6 +173,7 @@ function AppContent() {
 
   return (
     <AppProvider householdId={household.id}>
+      <FinanceProvider householdId={household.id}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -205,6 +198,7 @@ function AppContent() {
           />
         </Stack.Navigator>
       </NavigationContainer>
+      </FinanceProvider>
     </AppProvider>
   );
 }
