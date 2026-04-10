@@ -21,7 +21,7 @@ service cloud.firestore {
     match /lists/{listId} {
       allow read: if isAuth() && (resource.data.ownerId == uid() || (resource.data.isShared == true && resource.data.householdId == myHouseholdId()));
       allow create: if isAuth();
-      allow update, delete: if isAuth() && resource.data.ownerId == uid();
+      allow update, delete: if isAuth() && (resource.data.ownerId == uid() || (resource.data.isShared == true && resource.data.householdId == myHouseholdId()));
       match /items/{itemId} {
         allow read, write: if isAuth();
       }
@@ -29,7 +29,7 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if isAuth() && (resource.data.ownerId == uid() || (resource.data.isShared == true && resource.data.householdId == myHouseholdId()));
       allow create: if isAuth();
-      allow update, delete: if isAuth() && resource.data.ownerId == uid();
+      allow update, delete: if isAuth() && (resource.data.ownerId == uid() || (resource.data.isShared == true && resource.data.householdId == myHouseholdId()));
     }
 
     // ── Finance ──────────────────────────────────────────────────────────────

@@ -141,65 +141,47 @@ function TxRow({ tx, accountLabel, accountColor, onDelete }) {
   );
 }
 
-function PieChart({ data, size = 152, emptyColor }) {
-  const gridSize = 13;
-  const dotSize = 8;
-  const gap = 3;
-  const radius = gridSize / 2;
-  const points = [];
+function polarToCartesian(cx, cy, r, angleDeg) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
 
-  for (let y = 0; y < gridSize; y += 1) {
-    for (let x = 0; x < gridSize; x += 1) {
-      const dx = x - (gridSize - 1) / 2;
-      const dy = y - (gridSize - 1) / 2;
-      if ((dx * dx) + (dy * dy) <= radius * radius) {
-        points.push({ x, y });
-      }
-    }
+function buildDonutSvg(data, size, emptyColor, innerColor) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const outerR = size / 2;
+  const innerR = size * 0.24;
+  const bg = innerColor || emptyColor;
+
+  if (!data || data.length === 0) {
+    return `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${emptyColor}"/><circle cx="${cx}" cy="${cy}" r="${innerR}" fill="${bg}"/></svg>`;
   }
 
-  const totalDots = points.length;
   let cursor = 0;
-  const coloredDots = data.flatMap((slice, index) => {
-    const isLast = index === data.length - 1;
-    const count = isLast ? totalDots - cursor : Math.round(slice.ratio * totalDots);
-    const dots = Array.from({ length: Math.max(count, 0) }, () => slice.color);
-    cursor += dots.length;
-    return dots;
+  const paths = data.map((slice) => {
+    const startAngle = cursor * 360;
+    cursor += slice.ratio;
+    const endAngle = Math.min(cursor * 360, 359.999);
+    const start = polarToCartesian(cx, cy, outerR, startAngle);
+    const end = polarToCartesian(cx, cy, outerR, endAngle);
+    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+    const iStart = polarToCartesian(cx, cy, innerR, endAngle);
+    const iEnd = polarToCartesian(cx, cy, innerR, startAngle);
+    const d = `M ${start.x} ${start.y} A ${outerR} ${outerR} 0 ${largeArc} 1 ${end.x} ${end.y} L ${iStart.x} ${iStart.y} A ${innerR} ${innerR} 0 ${largeArc} 0 ${iEnd.x} ${iEnd.y} Z`;
+    return `<path d="${d}" fill="${slice.color}"/>`;
   });
 
-  while (coloredDots.length < totalDots) {
-    coloredDots.push(emptyColor);
-  }
+  return `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">${paths.join('')}<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="${bg}"/></svg>`;
+}
 
+function PieChart({ data, size = 152, emptyColor, innerColor }) {
+  const svgMarkup = buildDonutSvg(data, size, emptyColor, innerColor);
   return (
-    <View
-      style={[
-        styles.dotPie,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: emptyColor,
-        },
-      ]}
-    >
-      {points.map((point, index) => (
-        <View
-          key={`${point.x}-${point.y}`}
-          style={[
-            styles.dotPiePoint,
-            {
-              width: dotSize,
-              height: dotSize,
-              borderRadius: dotSize / 2,
-              left: point.x * (dotSize + gap) + 12,
-              top: point.y * (dotSize + gap) + 12,
-              backgroundColor: coloredDots[index] || emptyColor,
-            },
-          ]}
-        />
-      ))}
+    <View style={{ width: size, height: size }}>
+      <div
+        style={{ width: size, height: size }}
+        dangerouslySetInnerHTML={{ __html: svgMarkup }}
+      />
     </View>
   );
 }
@@ -221,10 +203,10 @@ function AccountExpenseChartCard({ title, color, amount, breakdown, colors }) {
 
       <View style={styles.chartBody}>
         <View style={styles.chartVisual}>
-          <PieChart data={breakdown} emptyColor={colors.surfaceAlt} />
+          <PieChart data={breakdown} emptyColor={colors.surfaceAlt} innerColor={colors.surface} />
           <View style={styles.chartCenterLabel}>
             <Text style={[styles.chartCenterValue, { color: colors.text }]}>{hasData ? breakdown.length : 0}</Text>
-            <Text style={[styles.chartCenterText, { color: colors.textMuted }]}>cat.</Text>
+            <Text style={[styles.chartCenterText, { color: colors.textMuted }]}>{breakdown.length > 1 ? 'types' : 'type'}</Text>
           </View>
         </View>
 
@@ -243,7 +225,7 @@ function AccountExpenseChartCard({ title, color, amount, breakdown, colors }) {
             ))
           ) : (
             <Text style={[styles.chartEmptyText, { color: colors.textMuted }]}>
-              Aucune dépense catégorisée pour ce compte.
+              Aucune transaction pour ce compte.
             </Text>
           )}
         </View>
@@ -308,6 +290,10 @@ export default function FinanceScreen() {
   const [newSavingsName, setNewSavingsName]   = useState('');
   const [newSavingsColor, setNewSavingsColor] = useState(SAVINGS_COLORS[0]);
   const [newSavingsNumber, setNewSavingsNumber] = useState('');
+
+  // Bilan mensuel
+  const [bilanMonth, setBilanMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [showBilan, setShowBilan] = useState(false);
 
   // ─ Ouvrir modal détail compte ─
   function openDetail(target) {
@@ -498,7 +484,6 @@ export default function FinanceScreen() {
   ];
 
   const accountCharts = useMemo(() => {
-    const expenseTx = transactions.filter((tx) => tx.type === 'expense');
     const allAccounts = [
       ...MAIN_ACCOUNTS.map((account) => ({
         id: account.key,
@@ -515,31 +500,29 @@ export default function FinanceScreen() {
     ];
 
     return allAccounts.map((account) => {
-      const accountTx = expenseTx.filter(account.matches);
-      const totalAmount = accountTx.reduce((sum, tx) => sum + (tx.amount || 0), 0);
-      const perCategory = EXPENSE_CATEGORIES.map((category) => {
+      const accountTx = transactions.filter((tx) => tx.type !== 'adjustment' && account.matches(tx));
+      const totalIncome = accountTx.filter((tx) => tx.type === 'income').reduce((s, tx) => s + (tx.amount || 0), 0);
+      const totalExpense = accountTx.filter((tx) => tx.type === 'expense').reduce((s, tx) => s + (tx.amount || 0), 0);
+      const totalAmount = totalIncome + totalExpense;
+
+      if (totalAmount === 0) return { ...account, totalAmount: 0, breakdown: [] };
+
+      const breakdown = [];
+
+      if (totalIncome > 0) {
+        breakdown.push({ key: 'income', label: 'Revenus', emoji: '💰', color: '#22C55E', amount: totalIncome, ratio: totalIncome / totalAmount });
+      }
+
+      EXPENSE_CATEGORIES.forEach((category) => {
         const amount = accountTx
-          .filter((tx) => (tx.category || 'autre') === category.key)
-          .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+          .filter((tx) => tx.type === 'expense' && (tx.category || 'autre') === category.key)
+          .reduce((s, tx) => s + (tx.amount || 0), 0);
+        if (amount > 0) {
+          breakdown.push({ ...category, amount, ratio: amount / totalAmount });
+        }
+      });
 
-        return {
-          ...category,
-          amount,
-        };
-      }).filter((category) => category.amount > 0);
-
-      const breakdown = totalAmount > 0
-        ? perCategory.map((category) => ({
-            ...category,
-            ratio: category.amount / totalAmount,
-          }))
-        : [];
-
-      return {
-        ...account,
-        totalAmount,
-        breakdown,
-      };
+      return { ...account, totalAmount, breakdown };
     });
   }, [accounts, transactions]);
 
@@ -1075,8 +1058,7 @@ const styles = StyleSheet.create({
   chartCardSubtitle: { fontSize: 12, fontWeight: '600' },
   chartBody: { flexDirection: 'row', alignItems: 'center' },
   chartVisual: { width: 152, height: 152, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  dotPie: { position: 'relative', overflow: 'hidden' },
-  dotPiePoint: { position: 'absolute' },
+
   chartCenterLabel: { position: 'absolute', alignItems: 'center' },
   chartCenterValue: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
   chartCenterText: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },

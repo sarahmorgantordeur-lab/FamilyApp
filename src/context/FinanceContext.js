@@ -248,6 +248,7 @@ export function FinanceProvider({ children, householdId }) {
   async function deleteSavingsAccount(accountId) {
     const q = query(
       collection(db, 'financeTransactions'),
+      where('householdId', '==', householdId),
       where('accountId', '==', accountId)
     );
     const snap = await getDocs(q);
