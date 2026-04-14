@@ -15,10 +15,100 @@ import { IMPORTANCE } from '../context/AppContext';
 import { useHousehold } from '../context/HouseholdContext';
 import { useTheme } from '../context/ThemeContext';
 
-const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, index) => {
-  const hours = String(Math.floor(index / 4)).padStart(2, '0');
-  const minutes = String((index % 4) * 15).padStart(2, '0');
-  return `${hours}:${minutes}`;
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+
+function TimePicker({ visible, onClose, value, onChange, title, colors }) {
+  const curH = value?.slice(0, 2) || '08';
+  const curM = value?.slice(3, 5) || '00';
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={tpStyles.overlay}>
+        <View style={[tpStyles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[tpStyles.header, { borderBottomColor: colors.border }]}>
+            <Text style={[tpStyles.title, { color: colors.text }]}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={[tpStyles.close, { color: colors.primary }]}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Aperçu */}
+          <View style={[tpStyles.preview, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[tpStyles.previewText, { color: colors.primary }]}>{curH}:{curM}</Text>
+          </View>
+
+          <View style={tpStyles.cols}>
+            {/* Heures */}
+            <View style={tpStyles.col}>
+              <Text style={[tpStyles.colLabel, { color: colors.textMuted }]}>Heure</Text>
+              <ScrollView showsVerticalScrollIndicator={false} style={tpStyles.scroll}>
+                {HOURS.map((h) => {
+                  const active = curH === h;
+                  return (
+                    <TouchableOpacity
+                      key={h}
+                      style={[tpStyles.chip, { backgroundColor: active ? colors.primary : colors.surfaceAlt, borderColor: active ? colors.primary : colors.border }]}
+                      onPress={() => onChange(`${h}:${curM}`)}
+                    >
+                      <Text style={[tpStyles.chipText, { color: active ? '#fff' : colors.text }]}>{h}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            <Text style={[tpStyles.sep, { color: colors.textMuted }]}>:</Text>
+
+            {/* Minutes */}
+            <View style={tpStyles.col}>
+              <Text style={[tpStyles.colLabel, { color: colors.textMuted }]}>Min</Text>
+              <ScrollView showsVerticalScrollIndicator={false} style={tpStyles.scroll}>
+                {MINUTES.map((m) => {
+                  const active = curM === m;
+                  return (
+                    <TouchableOpacity
+                      key={m}
+                      style={[tpStyles.chip, { backgroundColor: active ? colors.primary : colors.surfaceAlt, borderColor: active ? colors.primary : colors.border }]}
+                      onPress={() => onChange(`${curH}:${m}`)}
+                    >
+                      <Text style={[tpStyles.chipText, { color: active ? '#fff' : colors.text }]}>{m}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[tpStyles.confirmBtn, { backgroundColor: colors.primary }]}
+            onPress={onClose}
+          >
+            <Text style={tpStyles.confirmText}>Confirmer</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const tpStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  sheet: { width: '100%', maxWidth: 340, borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1 },
+  title: { fontSize: 16, fontWeight: '700' },
+  close: { fontSize: 15, fontWeight: '700' },
+  preview: { alignItems: 'center', paddingVertical: 14 },
+  previewText: { fontSize: 36, fontWeight: '800', letterSpacing: -1 },
+  cols: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 8 },
+  col: { flex: 1 },
+  colLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center', marginBottom: 8 },
+  scroll: { maxHeight: 220 },
+  chip: { borderRadius: 10, borderWidth: 1, marginBottom: 6, paddingVertical: 10, alignItems: 'center' },
+  chipText: { fontSize: 15, fontWeight: '700' },
+  sep: { fontSize: 28, fontWeight: '800', marginTop: 30, paddingHorizontal: 2 },
+  confirmBtn: { margin: 16, borderRadius: 14, paddingVertical: 13, alignItems: 'center' },
+  confirmText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
 
 export default function EventForm({ visible, onClose, onSave, initialDate, event }) {
@@ -233,65 +323,23 @@ export default function EventForm({ visible, onClose, onSave, initialDate, event
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Picker heure début */}
-        <Modal
+        <TimePicker
           visible={showTimePicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowTimePicker(false)}
-        >
-          <View style={styles.pickerOverlay}>
-            <View style={[styles.pickerModal, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
-                <Text style={[styles.pickerTitle, { color: colors.text }]}>Heure de début</Text>
-                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                  <Text style={[styles.pickerClose, { color: colors.primary }]}>Fermer</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
-                {TIME_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={[styles.timeOption, { backgroundColor: time === option ? colors.primaryLight : colors.surfaceAlt, borderColor: time === option ? colors.primary : colors.border }]}
-                    onPress={() => { setTime(option); setShowTimePicker(false); }}
-                  >
-                    <Text style={[styles.timeOptionText, { color: time === option ? colors.primary : colors.text }]}>{option}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
+          onClose={() => setShowTimePicker(false)}
+          value={time}
+          onChange={setTime}
+          title="Heure de début"
+          colors={colors}
+        />
 
-        {/* Picker heure fin */}
-        <Modal
+        <TimePicker
           visible={showEndTimePicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowEndTimePicker(false)}
-        >
-          <View style={styles.pickerOverlay}>
-            <View style={[styles.pickerModal, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
-                <Text style={[styles.pickerTitle, { color: colors.text }]}>Heure de fin</Text>
-                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
-                  <Text style={[styles.pickerClose, { color: colors.primary }]}>Fermer</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
-                {TIME_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={[styles.timeOption, { backgroundColor: endTime === option ? colors.primaryLight : colors.surfaceAlt, borderColor: endTime === option ? colors.primary : colors.border }]}
-                    onPress={() => { setEndTime(option); setShowEndTimePicker(false); }}
-                  >
-                    <Text style={[styles.timeOptionText, { color: endTime === option ? colors.primary : colors.text }]}>{option}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
+          onClose={() => setShowEndTimePicker(false)}
+          value={endTime}
+          onChange={setEndTime}
+          title="Heure de fin"
+          colors={colors}
+        />
       </SafeAreaView>
     </Modal>
   );
@@ -366,39 +414,5 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  pickerModal: {
-    width: '100%',
-    maxWidth: 380,
-    maxHeight: '75%',
-    borderRadius: 18,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  pickerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-  },
-  pickerTitle: { fontSize: 16, fontWeight: '700' },
-  pickerClose: { fontSize: 15, fontWeight: '700' },
-  pickerScroll: { padding: 12 },
-  timeOption: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  timeOptionText: { fontSize: 15, fontWeight: '600' },
   error: { marginTop: 16, textAlign: 'center', fontSize: 13 },
 });

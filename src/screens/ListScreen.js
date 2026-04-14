@@ -372,23 +372,65 @@ export default function ListScreen({ route, navigation }) {
             />
 
             <Text style={[styles.reminderLabel, { color: colors.textSecondary }]}>Heure</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeRow}>
-              {Array.from({ length: 24 * 4 }, (_, i) => {
-                const h = String(Math.floor(i / 4)).padStart(2, '0');
-                const m = String((i % 4) * 15).padStart(2, '0');
-                const t = `${h}:${m}`;
-                const active = reminderModal?.time === t;
-                return (
-                  <TouchableOpacity
-                    key={t}
-                    style={[styles.timeChip, { backgroundColor: active ? colors.primary : colors.surfaceAlt, borderColor: active ? colors.primary : colors.border }]}
-                    onPress={() => setReminderModal((m2) => ({ ...m2, time: t }))}
-                  >
-                    <Text style={[styles.timeChipText, { color: active ? '#fff' : colors.textSecondary }]}>{t}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            <View style={styles.timePickerRow}>
+              {/* Heures */}
+              <View style={styles.timePickerCol}>
+                <Text style={[styles.timePickerColLabel, { color: colors.textMuted }]}>Heure</Text>
+                <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const h = String(i).padStart(2, '0');
+                    const activeH = reminderModal?.time?.slice(0, 2) === h;
+                    return (
+                      <TouchableOpacity
+                        key={h}
+                        style={[styles.timePickerChip, { backgroundColor: activeH ? colors.primary : colors.surfaceAlt, borderColor: activeH ? colors.primary : colors.border }]}
+                        onPress={() => {
+                          const curMin = reminderModal?.time?.slice(3, 5) || '00';
+                          setReminderModal((m) => ({ ...m, time: `${h}:${curMin}` }));
+                        }}
+                      >
+                        <Text style={[styles.timePickerChipText, { color: activeH ? '#fff' : colors.textSecondary }]}>{h}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* Séparateur */}
+              <Text style={[styles.timePickerSep, { color: colors.textMuted }]}>:</Text>
+
+              {/* Minutes */}
+              <View style={styles.timePickerCol}>
+                <Text style={[styles.timePickerColLabel, { color: colors.textMuted }]}>Min</Text>
+                <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const mn = String(i * 5).padStart(2, '0');
+                    const activeM = reminderModal?.time?.slice(3, 5) === mn;
+                    return (
+                      <TouchableOpacity
+                        key={mn}
+                        style={[styles.timePickerChip, { backgroundColor: activeM ? colors.primary : colors.surfaceAlt, borderColor: activeM ? colors.primary : colors.border }]}
+                        onPress={() => {
+                          const curH = reminderModal?.time?.slice(0, 2) || '08';
+                          setReminderModal((m) => ({ ...m, time: `${curH}:${mn}` }));
+                        }}
+                      >
+                        <Text style={[styles.timePickerChipText, { color: activeM ? '#fff' : colors.textSecondary }]}>{mn}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* Aperçu heure sélectionnée */}
+            {reminderModal?.time && (
+              <View style={[styles.timePreview, { backgroundColor: colors.primaryLight, borderColor: colors.primary + '44' }]}>
+                <Text style={[styles.timePreviewText, { color: colors.primary }]}>
+                  ⏰ {reminderModal.date} à {reminderModal.time}
+                </Text>
+              </View>
+            )}
 
             <View style={styles.reminderActions}>
               <TouchableOpacity
@@ -536,9 +578,15 @@ const styles = StyleSheet.create({
   reminderTitle: { fontSize: 18, fontWeight: '800', marginBottom: 20 },
   reminderLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 },
   reminderInput: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, borderWidth: 1, marginBottom: 16 },
-  timeRow: { marginBottom: 20 },
-  timeChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, marginRight: 6 },
-  timeChipText: { fontSize: 13, fontWeight: '600' },
+  timePickerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 16 },
+  timePickerCol: { flex: 1 },
+  timePickerColLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, textAlign: 'center', marginBottom: 6 },
+  timePickerScroll: { maxHeight: 180 },
+  timePickerChip: { paddingVertical: 9, borderRadius: 10, borderWidth: 1, marginBottom: 5, alignItems: 'center' },
+  timePickerChipText: { fontSize: 14, fontWeight: '700' },
+  timePickerSep: { fontSize: 24, fontWeight: '800', marginTop: 28, paddingHorizontal: 2 },
+  timePreview: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, marginBottom: 16, alignItems: 'center' },
+  timePreviewText: { fontSize: 14, fontWeight: '700' },
   reminderActions: { gap: 10 },
   reminderBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   reminderBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
