@@ -27,6 +27,10 @@ ios/Pods/
 .env.*
 !.env.example
 
+# Firebase configuration with sensitive keys
+src/lib/firebase.js
+src/lib/firebase.native.js
+
 # Logs
 *.log
 npm-debug.log*
