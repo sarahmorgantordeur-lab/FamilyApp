@@ -1,8 +1,8 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, Platform, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ActivityIndicator, Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { AppProvider } from './src/context/AppContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
@@ -211,12 +211,58 @@ function AppNavigator() {
   );
 }
 
+function ThemeToggleOverlay() {
+  const { colors, isDark, toggleTheme } = useTheme();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  // Desktop web : AppNavBar a déjà le bouton
+  if (Platform.OS === 'web' && width >= 768) return null;
+
+  const top = Platform.OS !== 'web' ? insets.top + 8 : 10;
+
+  return (
+    <TouchableOpacity
+      onPress={toggleTheme}
+      style={[
+        styles.themeBtn,
+        { top, backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
+      <Text style={styles.themeBtnText}>{isDark ? '☀️' : '🌙'}</Text>
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  themeBtn: {
+    position: 'absolute',
+    right: 12,
+    zIndex: 999,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  themeBtnText: { fontSize: 16 },
+});
+
 export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <AppNavigator />
+          <View style={{ flex: 1 }}>
+            <AppNavigator />
+            <ThemeToggleOverlay />
+          </View>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
