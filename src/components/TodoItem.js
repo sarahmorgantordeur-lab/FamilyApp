@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
-export default function TodoItem({ item, onToggle, onDelete, onSetReminder }) {
+export default function TodoItem({ item, onToggle, onDelete, onSetReminder, onSetPriority }) {
   const { colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -59,6 +59,18 @@ export default function TodoItem({ item, onToggle, onDelete, onSetReminder }) {
             {item.text}
           </Text>
         </TouchableOpacity>
+
+        {onSetPriority && (
+          <TouchableOpacity
+            style={[styles.priorityBtn, { backgroundColor: item.priority > 0 ? colors.primaryLight : colors.surfaceAlt }]}
+            onPress={(e) => { e.stopPropagation?.(); onSetPriority(item.id); }}
+            hitSlop={10}
+          >
+            <Text style={[styles.priorityText, item.priority > 0 && { color: colors.primary }]}>
+              {item.priority > 0 ? `★${item.priority}` : '☆'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {!item.checked && onSetReminder && (
           <TouchableOpacity
@@ -129,6 +141,17 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   reminderText: { fontSize: 14 },
+  priorityBtn: {
+    minWidth: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+    flexShrink: 0,
+    paddingHorizontal: 4,
+  },
+  priorityText: { fontSize: 13, fontWeight: '700' },
   deleteBtn: {
     width: 28,
     height: 28,

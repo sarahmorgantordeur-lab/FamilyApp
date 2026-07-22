@@ -58,6 +58,7 @@ function normalizeListDocItem(item, list) {
     text: item.text || '',
     checked: !!item.checked,
     dueDate: item.dueDate ?? item.due_date ?? null,
+    priority: item.priority ?? 0,
     createdAt: item.createdAt ?? item.created_at ?? new Date().toISOString(),
     listId: list.id,
     ownerId: item.ownerId || item.owner_id || list.ownerId || null,
@@ -331,6 +332,7 @@ export function AppProvider({ children, householdId }) {
       text,
       checked: false,
       dueDate: null,
+      priority: 0,
       createdAt: new Date().toISOString(),
       listId,
       ownerId: list?.ownerId || uid,
@@ -367,6 +369,9 @@ export function AppProvider({ children, householdId }) {
   async function setItemReminder(itemId, listId, reminderAt) {
     await updateDoc(doc(db, 'lists', listId, 'items', itemId), { reminderAt: reminderAt || null });
   }
+  async function setItemPriority(itemId, listId, priority) {
+    await updateDoc(doc(db, 'lists', listId, 'items', itemId), { priority: Math.max(0, Math.min(5, priority)) });
+  }
 
   // --- Events ---
   async function addEvent(data) {
@@ -393,7 +398,7 @@ export function AppProvider({ children, householdId }) {
     <AppContext.Provider value={{
       lists, events, loading,
       addList, deleteList, renameList, toggleShared,
-      addItem, toggleItem, deleteItem, uncheckAll, setItemDueDate, setItemReminder,
+      addItem, toggleItem, deleteItem, uncheckAll, setItemDueDate, setItemReminder, setItemPriority,
       addEvent, updateEvent, deleteEvent,
     }}>
       {children}

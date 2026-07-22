@@ -24,7 +24,7 @@ import { useTheme } from '../context/ThemeContext';
 
 export default function ListScreen({ route, navigation }) {
   const { listId } = route.params;
-  const { lists, addItem, toggleItem, deleteItem, uncheckAll, renameList, toggleShared, setItemReminder } = useApp();
+  const { lists, addItem, toggleItem, deleteItem, uncheckAll, renameList, toggleShared, setItemReminder, setItemPriority } = useApp();
   const { session } = useAuth();
   const { colors } = useTheme();
   const [newItemText, setNewItemText] = useState('');
@@ -33,6 +33,7 @@ export default function ListScreen({ route, navigation }) {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const [reminderModal, setReminderModal] = useState(null); // { itemId, date, time }
+  const [priorityModal, setPriorityModal] = useState(null); // { itemId, priority }
 
   function defaultReminderValues() {
     const d = new Date(Date.now() + 60 * 60 * 1000); // +1h
@@ -71,6 +72,25 @@ export default function ListScreen({ route, navigation }) {
       setError(err?.message || 'Impossible de supprimer le rappel.');
     }
     setReminderModal(null);
+  }
+
+  function openPriorityModal(itemId) {
+    const item = list?.items?.find((i) => i.id === itemId);
+    setPriorityModal({ itemId, priority: item?.priority || 0 });
+  }
+
+  function handleSelectPriorityStar(value) {
+    setPriorityModal((m) => ({ ...m, priority: m.priority === value ? 0 : value }));
+  }
+
+  async function handleConfirmPriority() {
+    if (!priorityModal) return;
+    try {
+      await setItemPriority(priorityModal.itemId, listId, priorityModal.priority);
+    } catch (err) {
+      setError(err?.message || "Impossible de définir la priorité.");
+    }
+    setPriorityModal(null);
   }
 
   const list = lists.find((l) => l.id === listId);
@@ -182,6 +202,7 @@ export default function ListScreen({ route, navigation }) {
   const totalCount = list.items.length;
   const progress = totalCount > 0 ? checkedCount / totalCount : 0;
   const allDone = totalCount > 0 && checkedCount === totalCount;
+  const sortedItems = [...list.items].sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
   return (
     <SafeAreaView className="flex-1" style={[styles.safe, { backgroundColor: colors.background }]} edges={['bottom']}>
@@ -294,7 +315,7 @@ export default function ListScreen({ route, navigation }) {
           {/* Items */}
           <FlatList
             className="flex-1"
-            data={list.items}
+            data={sortedItems}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <TodoItem
@@ -302,6 +323,7 @@ export default function ListScreen({ route, navigation }) {
                 onToggle={() => toggleItem(item.id, listId, item.checked)}
                 onDelete={() => handleDeleteItem(item.id)}
                 onSetReminder={openReminderModal}
+                onSetPriority={openPriorityModal}
               />
             )}
             contentContainerStyle={styles.listContent}
@@ -451,6 +473,48 @@ export default function ListScreen({ route, navigation }) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* ─── Modal priorité ───────────────────────────────────────────────── */}
+      <Modal visible={!!priorityModal} transparent animationType="slide" onRequestClose={() => setPriorityModal(null)}>
+        <View style={styles.reminderOverlay}>
+          <Pressable style={{ flex: 1 }} onPress={() => setPriorityModal(null)} />
+          <View style={[styles.reminderSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.reminderHandle} />
+            <Text style={[styles.reminderTitle, { color: colors.text }]}>Définir la priorité</Text>
+
+            <View style={styles.starsRow}>
+              {[1, 2, 3, 4, 5].map((value) => {
+                const filled = priorityModal && priorityModal.priority >= value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    style={styles.starBtn}
+                    onPress={() => handleSelectPriorityStar(value)}
+                    hitSlop={8}
+                  >
+                    <Text style={[styles.starText, { color: filled ? colors.primary : colors.border }]}>
+                      {filled ? '★' : '☆'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.priorityHint, { color: colors.textSecondary }]}>
+              {priorityModal?.priority > 0 ? `${priorityModal.priority} / 5` : 'Aucune priorité'}
+            </Text>
+
+            <View style={styles.reminderActions}>
+              <TouchableOpacity
+                style={[styles.reminderBtn, { backgroundColor: colors.primary }]}
+                onPress={handleConfirmPriority}
+              >
+                <Text style={styles.reminderBtnText}>Enregistrer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -587,6 +651,10 @@ const styles = StyleSheet.create({
   timePickerSep: { fontSize: 24, fontWeight: '800', marginTop: 28, paddingHorizontal: 2 },
   timePreview: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, marginBottom: 16, alignItems: 'center' },
   timePreviewText: { fontSize: 14, fontWeight: '700' },
+  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 12 },
+  starBtn: { padding: 4 },
+  starText: { fontSize: 40 },
+  priorityHint: { fontSize: 13, textAlign: 'center', marginBottom: 20 },
   reminderActions: { gap: 10 },
   reminderBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   reminderBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
